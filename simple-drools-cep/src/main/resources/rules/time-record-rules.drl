@@ -130,13 +130,29 @@ then
 	$event.otBeforeShift = getDiffInMinute($event.timestamp, $shift.lateClockOut);
 end
 
-function String getDiffInMinute(Date minClockIn, Date timestamp) {
+
+rule "Calculate total working during shift"
+dialect "mvel"
+salience -90
+when
+    $event1:TimeRecordEvent(clockType == ClockType.CLOCK_IN) from entry-point "DayShift"
+    $event2:TimeRecordEvent(clockType == ClockType.CLOCK_OUT, this != $event1, staff.id == $event1.staff.id) from entry-point "DayShift"
+then
+   
+	System.out.println("total working during shift, ID : " + $event1.getStaff().getId() + ", "  + getDiffInMinute($event2.timestamp, $event1.timestamp) + " minute");
+
+	$event2.issue = false;
+	$event2.reason = "calcuate total working during shift";
+	$event2.totalDuringShift = getDiffInMinute($event2.timestamp, $event1.timestamp);
+end
+
+function long getDiffInMinute(Date minClockIn, Date timestamp) {
    long diff = minClockIn.getTime() - timestamp.getTime();
    //long diffSeconds = diff / 1000;         
    long diffMinutes = diff / (60 * 1000);         
    //long diffHours = diff / (60 * 60 * 1000);
    
-   return diffMinutes+"";
+   return diffMinutes;
 }
 
 function  Date getShortDate(Date date) {
