@@ -10,7 +10,7 @@ import java.lang.Math;
 declare TimeRecordEvent
     @role( event )
     @timestamp( timestamp.getTime() )
-    @expires( 2d )
+    @expires( 1d )
 end
 
 //Day Shift (07:00 – 23:59 hours)
@@ -140,7 +140,7 @@ when
 then
    
 	System.out.println("total working during shift, ID : " + $event1.getStaff().getId() + ", "  + getDiffInMinute($event2.timestamp, $event1.timestamp) + " minute");
-
+   
 	$event2.issue = false;
 	$event2.reason = "calcuate total working during shift";
 	$event2.totalDuringShift = getDiffInMinute($event2.timestamp, $event1.timestamp);
@@ -163,17 +163,3 @@ function  Date getShortDate(Date date) {
 	
     return cal.getTime();
 }
-
-//your lab:
-//create rule to calculate total of minute during shift.
-
-/*
-rule "Staff clock-out properly"
-when
-	$shift : Shift($buffer : )
-    $event1:TimeRecordEvent(clockType == ClockType.CLOCK_IN) from entry-point "ClockStream"
-    $event2:TimeRecordEvent(clockType == ClockType.CLOCK_OUT, this != $event1, staff.id == $event1.staff.id, this after[0s,10m] $event1) from entry-point "ClockStream"
-then
-	System.out.println("Staff checkout properly, Staff ID: " + $event1.getStaff().getId());
-end
-*/
