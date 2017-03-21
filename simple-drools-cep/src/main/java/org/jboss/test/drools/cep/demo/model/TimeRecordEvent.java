@@ -17,7 +17,16 @@ public class TimeRecordEvent implements Fact {
 	private String reason;
 	private Integer otBeforeShift;
 	private Integer otAfterShift;
+	private Integer totalDuringShift;
 	
+	public Integer getTotalDuringShift() {
+		return totalDuringShift;
+	}
+
+	public void setTotalDuringShift(Integer totalDuringShift) {
+		this.totalDuringShift = totalDuringShift;
+	}
+
 	public boolean isIssue() {
 		return issue;
 	}

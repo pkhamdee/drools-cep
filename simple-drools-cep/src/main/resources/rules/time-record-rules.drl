@@ -148,6 +148,8 @@ function  Date getShortDate(Date date) {
     return cal.getTime();
 }
 
+//your lab:
+//create rule to calculate total of minute during shift.
 
 /*
 rule "Staff clock-out properly"
