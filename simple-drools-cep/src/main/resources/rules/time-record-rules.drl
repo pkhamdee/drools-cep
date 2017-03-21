@@ -1,0 +1,161 @@
+package org.jboss.ddoyle.rhsummit2014.bags;
+
+import org.jboss.test.drools.cep.demo.model.TimeRecordEvent;
+import org.jboss.test.drools.cep.demo.model.ClockType;
+import org.jboss.test.drools.cep.demo.model.Shift;
+import java.util.Date;
+import java.util.Calendar;
+import java.lang.Math;
+
+declare TimeRecordEvent
+    @role( event )
+    @timestamp( timestamp.getTime() )
+    @expires( 2d )
+end
+
+//Day Shift (07:00 – 23:59 hours)
+
+rule "Staff double clock-in"
+dialect "mvel"
+salience 99
+when
+    $event1:TimeRecordEvent(clockType == ClockType.CLOCK_IN) from entry-point "DayShift"
+    $event2:TimeRecordEvent(clockType == ClockType.CLOCK_IN, this != $event1, staff.id == $event1.staff.id) from entry-point "DayShift"
+then
+	System.out.println("staff double clock in, ID : " + $event1.getStaff().getId() + " retracted.");
+	if($event2.timestamp > $event1.timestamp){
+		retract($event2);
+	} else {
+		retract($event1);
+	}
+end
+
+rule "Staff double clock-out"
+dialect "mvel"
+salience 99
+when
+    $event1:TimeRecordEvent(clockType == ClockType.CLOCK_OUT) from entry-point "DayShift"
+    $event2:TimeRecordEvent(clockType == ClockType.CLOCK_OUT, this != $event1, staff.id == $event1.staff.id) from entry-point "DayShift"
+then
+	System.out.println("staff double clock out, ID : " + $event1.getStaff().getId() + " retracted.");
+	if($event2.timestamp < $event1.timestamp){
+		retract($event2);
+	} else {
+		retract($event1);
+	}
+end
+
+rule "Staff clock-in properly"
+dialect "mvel"
+salience 90
+when
+    $shift:Shift() from entry-point "DayShift"
+    $event:TimeRecordEvent(clockType == ClockType.CLOCK_IN, staff.id == $shift.staff.id, this after $shift.minClockIn, this before $shift.shiftStart) from entry-point "DayShift"
+then
+	System.out.println("staff clock in properly, ID : " + $event.getStaff().getId());
+	
+	$event.issue = false;
+	$event.reason = "staff clock in properly";
+end
+
+rule "Staff clock-in early"
+dialect "mvel"
+salience 90
+when
+    $shift:Shift() from entry-point "DayShift"
+    $event:TimeRecordEvent(clockType == ClockType.CLOCK_IN, staff.id == $shift.staff.id, this before $shift.minClockIn) from entry-point "DayShift"
+then
+	System.out.println("staff clock early, ID : " + $event.getStaff().getId());
+	System.out.println("staff work for OT :  " + getDiffInMinute($shift.minClockIn, $event.timestamp) + " minute");
+	
+	$event.issue = false;
+	$event.reason = "staff work for OT";
+	$event.otAfterShift = getDiffInMinute($shift.minClockIn, $event.timestamp);
+end
+
+rule "Staff clock-in late"
+dialect "mvel"
+salience 90
+when
+    $shift:Shift() from entry-point "DayShift"
+    $event:TimeRecordEvent(clockType == ClockType.CLOCK_IN, staff.id == $shift.staff.id, this after $shift.shiftStart) from entry-point "DayShift"
+then
+	System.out.println("staff clock in late, ID : " + $event.getStaff().getId());
+	System.out.println("staff late to work : " + getDiffInMinute($event.timestamp, $shift.shiftStart) + " minute");
+	
+	$event.issue = true;
+	$event.reason = "staff late to work : " + getDiffInMinute($event.timestamp, $shift.shiftStart) + " minute";
+end
+
+
+rule "Staff clock-out properly"
+dialect "mvel"
+salience 90
+when
+    $shift:Shift() from entry-point "DayShift"
+    $event:TimeRecordEvent(clockType == ClockType.CLOCK_OUT, staff.id == $shift.staff.id, this after $shift.shiftEnd, this before $shift.lateClockOut) from entry-point "DayShift"
+then
+	System.out.println("staff clock out properly, ID : " + $event.getStaff().getId());
+	
+	$event.issue = false;
+	$event.reason = "staff clock out properly";
+end
+
+rule "Staff clock-out early"
+dialect "mvel"
+salience 90
+when
+    $shift:Shift() from entry-point "DayShift"
+    $event:TimeRecordEvent(clockType == ClockType.CLOCK_OUT, staff.id == $shift.staff.id, this before $shift.shiftEnd) from entry-point "DayShift"
+then
+	System.out.println("staff clock out early, ID : " + $event.getStaff().getId());
+	System.out.println("staff leave early : " + getDiffInMinute($shift.shiftEnd, $event.timestamp) + " minute");
+	
+	$event.issue = true;
+	$event.reason = "staff leave early : " + getDiffInMinute($shift.shiftEnd, $event.timestamp) + " minute";
+end
+
+rule "Staff clock-out late"
+dialect "mvel"
+salience 90
+when
+    $shift:Shift() from entry-point "DayShift"
+    $event:TimeRecordEvent(clockType == ClockType.CLOCK_OUT, staff.id == $shift.staff.id, this after $shift.lateClockOut) from entry-point "DayShift"
+then
+	System.out.println("staff clock out late, ID : " + $event.getStaff().getId());
+	System.out.println("staff work for OT : " + getDiffInMinute($event.timestamp, $shift.lateClockOut) + " minute");
+	
+	$event.issue = false;
+	$event.reason = "staff work for OT";
+	$event.otBeforeShift = getDiffInMinute($event.timestamp, $shift.lateClockOut);
+end
+
+function String getDiffInMinute(Date minClockIn, Date timestamp) {
+   long diff = minClockIn.getTime() - timestamp.getTime();
+   //long diffSeconds = diff / 1000;         
+   long diffMinutes = diff / (60 * 1000);         
+   //long diffHours = diff / (60 * 60 * 1000);
+   
+   return diffMinutes+"";
+}
+
+function  Date getShortDate(Date date) {
+	java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd-MM-yyyy");
+	
+	Calendar cal = Calendar.getInstance();
+	cal.setTime(sdf.parse(sdf.format(date)));
+	
+    return cal.getTime();
+}
+
+
+/*
+rule "Staff clock-out properly"
+when
+	$shift : Shift($buffer : )
+    $event1:TimeRecordEvent(clockType == ClockType.CLOCK_IN) from entry-point "ClockStream"
+    $event2:TimeRecordEvent(clockType == ClockType.CLOCK_OUT, this != $event1, staff.id == $event1.staff.id, this after[0s,10m] $event1) from entry-point "ClockStream"
+then
+	System.out.println("Staff checkout properly, Staff ID: " + $event1.getStaff().getId());
+end
+*/

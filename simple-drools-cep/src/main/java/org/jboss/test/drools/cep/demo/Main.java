@@ -1,12 +1,13 @@
-package org.jboss.ddoyle.drools.cep.demo;
+package org.jboss.test.drools.cep.demo;
 
 import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.drools.core.time.SessionPseudoClock;
-import org.jboss.ddoyle.drools.cep.demo.model.Event;
-import org.jboss.ddoyle.drools.cep.demo.model.Fact;
+import org.jboss.test.drools.cep.demo.model.Fact;
+import org.jboss.test.drools.cep.demo.model.Shift;
+import org.jboss.test.drools.cep.demo.model.TimeRecordEvent;
 import org.kie.api.KieServices;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
@@ -16,17 +17,14 @@ import org.kie.api.time.SessionClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * 
- * @author <a href="mailto:duncan.doyle@redhat.com">Duncan Doyle</a>
- */
+
 public class Main {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
 	private static final String EVENTS_CSV_FILE = "events.csv";
-
-	private static final String CEP_STREAM = "AirportStream";
+	private static final String SESSION_NAME = "timerecord-test-session";
+	private static final String CEP_STREAM = "DayShift";
 
 	public static void main(String[] args) {
 		LOGGER.info("Initialize KIE.");
@@ -34,16 +32,19 @@ public class Main {
 		KieServices kieServices = KieServices.Factory.get();
 		// Load KieContainer from resources on classpath (i.e. kmodule.xml and rules).
 		KieContainer kieContainer = kieServices.getKieClasspathContainer();
+		kieContainer.getKieBase("timerecord-test-kbase");
 
 		// Initializing KieSession.
 		LOGGER.info("Creating KieSession.");
-		KieSession kieSession = kieContainer.newKieSession();
+		KieSession kieSession = kieContainer.newKieSession("timerecord-test-session");
 		try {
 			//Load the facts/events from our CSV file.
 			InputStream eventsInputStream = Main.class.getClassLoader().getResourceAsStream(EVENTS_CSV_FILE);
-			List<Event> events = FactsLoader.loadEvents(eventsInputStream);
 			
-			for (Event nextEvent: events) {
+			
+			List<Fact> events = FactsLoader.loadEvents(eventsInputStream);
+
+			for (Fact nextEvent: events) {
 				//Insert the event into the session
 				insert(kieSession, CEP_STREAM, nextEvent);
 				//And now, fire the rules. In a real application, you probably want to batch the inserts instead of firing rules after every insert.
@@ -60,15 +61,7 @@ public class Main {
 		}
 	}
 
-	/**
-	 * Inserts the {@link Fact} into a given <code>Drools Fusion Stream</code> of the {@link KieSession} and advances the PseudoClock to the
-	 * time of the event.
-	 * 
-	 * @param kieSession
-	 * @param stream
-	 * @param fact
-	 * @return
-	 */
+	
 	private static FactHandle insert(KieSession kieSession, String stream, Fact fact) {
 		LOGGER.info("Inserting fact with id: '" + fact.getId() + "' into stream: " + stream);
 		SessionClock clock = kieSession.getSessionClock();
@@ -86,14 +79,14 @@ public class Main {
 
 		// And then advance the clock
 		// We only need to advance the time when dealing with Events. Our facts don't have timestamps.
-		if (fact instanceof Event) {
+		if (fact instanceof TimeRecordEvent) {
 
-			long advanceTime = ((Event) fact).getTimestamp().getTime() - pseudoClock.getCurrentTime();
+			long advanceTime = ((TimeRecordEvent) fact).getTimestamp().getTime() - pseudoClock.getCurrentTime();
 			if (advanceTime > 0) {
 				LOGGER.info("Advancing the PseudoClock with " + advanceTime + " milliseconds.");
 				pseudoClock.advanceTime(advanceTime, TimeUnit.MILLISECONDS);
 			} else {
-				LOGGER.info("Not advancing time. Fact timestamp is '" + ((Event) fact).getTimestamp().getTime()
+				LOGGER.info("Not advancing time. Fact timestamp is '" + ((TimeRecordEvent) fact).getTimestamp().getTime()
 						+ "', PseudoClock timestamp is '" + pseudoClock.getCurrentTime() + "'.");
 			}
 

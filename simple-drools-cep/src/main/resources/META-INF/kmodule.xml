@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <kmodule xmlns="http://jboss.org/kie/6.0.0/kmodule">
-    <kbase name="rules" equalsBehavior="equality" eventProcessingMode="stream" packages="rules">
-        <ksession name="ksession-rules" default="true" type="stateful" clockType="pseudo"/>
+
+      <kbase name="timerecord-kbase" equalsBehavior="equality" eventProcessingMode="stream" packages="rules">
+        <ksession name="timerecord-session" default="true" type="stateful" clockType="realtime" />
+    </kbase>
+
+    <!-- timerecord-test-kbase uses a pseudo clockType for testing purpose -->
+    <kbase name="timerecord-test-kbase" equalsBehavior="equality" eventProcessingMode="stream" packages="rules">
+        <ksession name="timerecord-test-session" default="false" type="stateful" clockType="pseudo" />
     </kbase>
 </kmodule>

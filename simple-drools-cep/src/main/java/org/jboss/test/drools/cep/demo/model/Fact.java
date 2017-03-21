@@ -1,4 +1,4 @@
-package org.jboss.ddoyle.drools.cep.demo.model;
+package org.jboss.test.drools.cep.demo.model;
 
 import java.io.Serializable;
 
@@ -8,7 +8,5 @@ import java.io.Serializable;
  * @author <a href="mailto:duncan.doyle@redhat.com">Duncan Doyle</a>
  */
 public interface Fact extends Serializable {
-
 	public abstract String getId();
-	
 }
